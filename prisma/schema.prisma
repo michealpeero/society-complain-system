@@ -1,0 +1,170 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  phone     String?
+  role      String   @default("resident") // admin, staff, resident
+  status    String   @default("active") // active, inactive
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  societyId String?
+  society   Society? @relation(fields: [societyId], references: [id])
+  member    Member?
+  staff     Staff?
+}
+
+model Society {
+  id        String   @id @default(cuid())
+  name      String
+  address   String
+  city      String
+  state     String
+  pincode   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users      User[]
+  members    Member[]
+  staff      Staff[]
+  events     Event[]
+  notices    Notice[]
+  complaints Complaint[]
+  payments   Payment[]
+  messages   Message[]
+}
+
+model Staff {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  phone       String
+  role        String   // Security, Maintenance, Housekeeping, etc.
+  department  String   // Operations, Maintenance, etc.
+  status      String   @default("active") // active, inactive
+  joinDate    DateTime @default(now())
+  societyId   String
+  userId      String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  society     Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Member {
+  id        String   @id @default(cuid())
+  name      String
+  flat      String
+  phone     String
+  email     String
+  status    String   @default("active") // active, inactive
+  joinDate  DateTime @default(now())
+  societyId String
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  society   Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  complaints Complaint[]
+  payments  Payment[]
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  date        String
+  time        String
+  location    String
+  description String
+  status      String   @default("upcoming") // upcoming, completed
+  societyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  society     Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
+}
+
+model Notice {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  priority    String   @default("medium") // high, medium, low
+  date        String
+  societyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  society     Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
+}
+
+model Complaint {
+  id               String   @id @default(cuid())
+  title            String
+  description      String
+  category         String   // plumber, electrician, water, security, internet, etc.
+  photos           String?  // JSON string storing up to 5 photo URLs
+  staffPhotos      String?  // JSON string storing up to 5 photo URLs (staff uploaded after work)
+  status           String   @default("pending") // pending, in-progress, resolved, rejected
+  date             String
+  submitter        String
+  societyId        String
+  memberId         String?
+  preferredStaffId String?  // Staff member preferred by resident
+  assignedStaffId  String?
+  assignedStaffName String?  // Staff name who is handling the complaint
+  assignedAt       DateTime? // When was the complaint assigned to staff
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  society          Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  member           Member?  @relation(fields: [memberId], references: [id])
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  content     String   // Message text content
+  senderId    String   // ID of the user who sent the message (User.id)
+  senderName  String   // Name of the sender for display
+  senderRole  String   // 'resident' or 'staff'
+  receiverId  String   // ID of the user who should receive the message (User.id)
+  societyId   String
+  complaintId String?  // Optional: link to a complaint
+  read        Boolean  @default(false) // Whether message has been read
+  createdAt   DateTime @default(now())
+
+  society     Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  amount    Float
+  type      String   @default("Maintenance") // Maintenance, Parking, Club, Other
+  date      String
+  status    String   @default("paid") // paid, pending, overdue
+  societyId String
+  memberId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  society   Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  member    Member   @relation(fields: [memberId], references: [id])
+}
